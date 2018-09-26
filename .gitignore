@@ -4,7 +4,9 @@
 *.dll
 *.so
 *.dylib
-
+release-*
+/cache.dat
+/gpclient
 # Test binary, build with `go test -c`
 *.test
 
