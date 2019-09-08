@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/snail007/goproxy/core/lib/kcpcfg"
-	encryptconn "github.com/snail007/goproxy/core/lib/transport/encrypt"
-	services "github.com/snail007/goproxy/services"
-	mux "github.com/snail007/goproxy/services/mux"
+	"github.com/snail007/proxy/core/lib/kcpcfg"
+	encryptconn "github.com/snail007/proxy/core/lib/transport/encrypt"
+	services "github.com/snail007/proxy/services"
+	mux "github.com/snail007/proxy/services/mux"
 	kcp "github.com/xtaci/kcp-go"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -35,7 +35,7 @@ var (
 	isDebug bool
 )
 
-const APP_VERSION = "1.0"
+const APP_VERSION = "8.2"
 
 func initConfig() (err error) {
 	//define  args
@@ -68,20 +68,24 @@ func initConfig() (err error) {
 	kcpArgs.KeepAlive = app.Flag("kcp-keepalive", "be carefull!").Default("10").Int()
 
 	//########mux-client#########
-
 	muxClientArgs.Parent = app.Flag("parent", "parent address, such as: \"23.32.32.19:28008\"").Default("").Short('P').String()
-	muxClientArgs.ParentType = app.Flag("parent-type", "parent protocol type <tls|tcp|tcps|kcp|tou>").Default("tls").Short('T').Enum("tls", "tcp", "tcps", "kcp", "tou")
+	muxClientArgs.ParentType = app.Flag("parent-type", "parent protocol type <tls|tcp|tcps|kcp|tou|ws|wss>").Default("tls").Short('T').Enum("tls", "tcp", "tcps", "kcp", "tou", "ws", "wss")
 	muxClientArgs.CertFile = app.Flag("cert", "cert file for tls").Short('C').Default("proxy.crt").String()
 	muxClientArgs.KeyFile = app.Flag("key", "key file for tls").Short('K').Default("proxy.key").String()
 	muxClientArgs.Timeout = app.Flag("timeout", "tcp timeout with milliseconds").Short('i').Default("2000").Int()
 	muxClientArgs.Key = app.Flag("k", "key same with server").Default("default").String()
 	muxClientArgs.IsCompress = app.Flag("c", "compress data when tcp|tls mode").Default("false").Bool()
 	muxClientArgs.SessionCount = app.Flag("session-count", "session count which connect to bridge").Short('n').Default("10").Int()
-	muxClientArgs.Jumper = app.Flag("jumper", "https or socks5 proxies used when connecting to parent, only worked of -T is tls or tcp, format is https://username:password@host:port https://host:port or socks5://username:password@host:port socks5://host:port").Short('J').Default("").String()
+	muxClientArgs.Jumper = app.Flag("jumper", "http(s) or socks5 or ss proxies used when connecting to parent, only worked of -T is tls or tcp, format is  http://username:password@host:port http://host:port https://username:password@host:port https://host:port or socks5://username:password@host:port socks5://host:port socks5s://username:password@host:port socks5s://host:port").Short('J').Default("").String()
 	muxClientArgs.TCPSMethod = app.Flag("tcps-method", "method of parent tcps's encrpyt/decrypt, these below are supported :\n"+strings.Join(encryptconn.GetCipherMethods(), ",")).Default("aes-192-cfb").String()
 	muxClientArgs.TCPSPassword = app.Flag("tcps-password", "password of parent tcps's encrpyt/decrypt").Default("snail007's_goproxy").String()
 	muxClientArgs.TOUMethod = app.Flag("tou-method", "method of parent tou's encrpyt/decrypt, these below are supported :\n"+strings.Join(encryptconn.GetCipherMethods(), ",")).Default("aes-192-cfb").String()
 	muxClientArgs.TOUPassword = app.Flag("tou-password", "password of parent tou's encrpyt/decrypt").Default("snail007's_goproxy").String()
+	muxClientArgs.WSMethod = app.Flag("ws-method", "method of local ws's encrpyt/decrypt, these below are supported :\n"+strings.Join(encryptconn.GetCipherMethods(), ",")).Default("aes-192-cfb").String()
+	muxClientArgs.WSPassword = app.Flag("ws-password", "password of parent ws's encrpyt/decrypt").Default("snail007/goproxy").String()
+	muxClientArgs.IsP2P = app.Flag("p2p", "using p2p when server connect to client").Default("false").Bool()
+	muxClientArgs.P2PPort = app.Flag("p2p-port", "bridge udp port of p2p punnching, if leave empty as same as tcp port of bridge").Default("").String()
+	muxClientArgs.KCP = kcpArgs
 
 	//parse args
 	kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -249,7 +253,7 @@ func initConfig() (err error) {
 
 	//regist services and run service
 	serviceName := "client"
-	services.Regist(serviceName, mux.NewMuxClient(), muxClientArgs, log)
+	services.Regist(serviceName, "client", mux.NewMuxClient(serviceName), muxClientArgs, log)
 	service, err = services.Run(serviceName, nil)
 	if err != nil {
 		log.Fatalf("run service [%s] fail, ERR:%s", serviceName, err)
